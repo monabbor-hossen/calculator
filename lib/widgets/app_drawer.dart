@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../data/history_db.dart';
+import '../data/tip_calculation_model.dart';
 import '../screens/history_screen.dart';
 import '../screens/tip_calculator_screen.dart';
+import '../screens/tip_history_screen.dart';
 import '../screens/unit_converter_screen.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -243,6 +245,21 @@ class AppDrawer extends StatelessWidget {
                         MaterialPageRoute(builder: (_) => const HistoryScreen()),
                       );
                       if (res != null) onValueSelected(res);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Tip & Split History',
+                    subtitle: 'View saved group bills',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final res = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const TipHistoryScreen()),
+                      );
+                      if (res is TipCalculation) {
+                        onValueSelected(res.perPerson.toStringAsFixed(2));
+                      }
                     },
                   ),
                   _buildDrawerItem(
