@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/utils/date_formatter.dart';
+import '../core/utils/number_formatter.dart';
 import '../data/box_measurement_model.dart';
 import '../data/history_db.dart';
+import '../widgets/neumorphic_icon_button.dart';
 
 class BoxHistoryScreen extends StatefulWidget {
   const BoxHistoryScreen({super.key});
@@ -96,27 +99,9 @@ class _BoxHistoryScreenState extends State<BoxHistoryScreen> {
     }
   }
 
-  String _fmt(double v, [int decimals = 2]) {
-    if (v.abs() >= 1000000) return v.toStringAsExponential(2);
-    if (v == v.truncateToDouble() && decimals <= 2) {
-      return v.toInt().toString();
-    }
-    return v.toStringAsFixed(decimals).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-  }
+  String _fmt(double v, [int decimals = 2]) => NumberFormatter.format(v, decimals);
 
-  String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
-    final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final timeStr = '$hour:$minute $period';
-
-    if (isToday) return 'Today, $timeStr';
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year} • $timeStr';
-  }
+  String _formatTimestamp(DateTime dt) => DateFormatter.formatTimestamp(dt);
 
   void _copySpecs(BoxMeasurement item) {
     final text = '3D Box Measurement: ${item.title}\n'
@@ -153,7 +138,7 @@ class _BoxHistoryScreenState extends State<BoxHistoryScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Row(
                     children: [
-                      _buildRoundButton(
+                      NeumorphicIconButton(
                         icon: Icons.arrow_back_ios_new_rounded,
                         onTap: () => Navigator.pop(context),
                       ),
@@ -171,7 +156,7 @@ class _BoxHistoryScreenState extends State<BoxHistoryScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _buildRoundButton(
+                      NeumorphicIconButton(
                         icon: Icons.delete_sweep_rounded,
                         color: kOrange,
                         tooltip: 'Clear All History',
@@ -471,37 +456,5 @@ class _BoxHistoryScreenState extends State<BoxHistoryScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildRoundButton({
-    required IconData icon,
-    Color? color,
-    required VoidCallback onTap,
-    String? tooltip,
-  }) {
-    Widget btn = GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: const BoxDecoration(
-          color: kBtnBase,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
-            BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
-          ],
-        ),
-        child: Icon(icon, color: color ?? kTextPrimary, size: 18),
-      ),
-    );
-
-    if (tooltip != null) {
-      return Tooltip(message: tooltip, child: btn);
-    }
-    return btn;
   }
 }

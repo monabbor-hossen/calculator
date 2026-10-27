@@ -3,8 +3,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/utils/number_formatter.dart';
 import '../data/box_measurement_model.dart';
 import '../data/history_db.dart';
+import '../features/box_measurement/domain/services/box_calculator_service.dart';
+import '../widgets/neumorphic_icon_button.dart';
 import 'box_history_screen.dart';
 
 class BoxMeasurementScreen extends StatefulWidget {
@@ -27,9 +30,9 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
   double _zoom = 1.0;   // 0.4x to 2.5x
   double _baseZoom = 1.0;
 
-  final List<String> _units = ['cm', 'm', 'mm', 'in', 'ft', 'yd'];
+  static const List<String> _units = ['cm', 'm', 'mm', 'in', 'ft', 'yd'];
 
-  final List<Map<String, dynamic>> _presets = [
+  static const List<Map<String, dynamic>> _presets = [
     {'name': 'Shoebox', 'l': 33.0, 'w': 20.0, 'h': 12.0, 'unit': 'cm'},
     {'name': 'Small Parcel', 'l': 20.0, 'w': 15.0, 'h': 10.0, 'unit': 'cm'},
     {'name': 'Medium Box', 'l': 35.0, 'w': 25.0, 'h': 20.0, 'unit': 'cm'},
@@ -49,54 +52,21 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
     }
   }
 
-  // ── Unit Conversions ────────────────────────────────────────────────────────
-  double _toMeters(double val, String unit) {
-    switch (unit) {
-      case 'm':  return val;
-      case 'cm': return val * 0.01;
-      case 'mm': return val * 0.001;
-      case 'in': return val * 0.0254;
-      case 'ft': return val * 0.3048;
-      case 'yd': return val * 0.9144;
-      default:   return val * 0.01;
-    }
-  }
+  static const _boxCalculator = BoxCalculatorService();
 
-  double get _lengthInMeters => _toMeters(_length, _unit);
-  double get _widthInMeters  => _toMeters(_width, _unit);
-  double get _heightInMeters => _toMeters(_height, _unit);
+  BoxMetrics get _metrics => _boxCalculator.calculateMetrics(
+    length: _length,
+    width: _width,
+    height: _height,
+    unit: _unit,
+  );
 
-  // Volume in m³
-  double get _volumeInMeters3 =>
-      _lengthInMeters * _widthInMeters * _heightInMeters;
+  double get _volumeInMeters3 => _metrics.volumeM3;
+  double get _surfaceAreaInMeters2 => _metrics.surfaceAreaM2;
+  double get _diagonalInMeters => _metrics.diagonalMeters;
+  double get _volumetricWeightKg => _metrics.volumetricWeightKg;
 
-  // Surface Area in m²
-  double get _surfaceAreaInMeters2 =>
-      2 * ((_lengthInMeters * _widthInMeters) +
-          (_lengthInMeters * _heightInMeters) +
-          (_widthInMeters * _heightInMeters));
-
-  // Space Diagonal in meters
-  double get _diagonalInMeters => math.sqrt(
-      (_lengthInMeters * _lengthInMeters) +
-      (_widthInMeters * _widthInMeters) +
-      (_heightInMeters * _heightInMeters));
-
-  // Volumetric weight (Air freight divisor 5000 in cm)
-  double get _volumetricWeightKg {
-    final lCm = _lengthInMeters * 100;
-    final wCm = _widthInMeters * 100;
-    final hCm = _heightInMeters * 100;
-    return (lCm * wCm * hCm) / 5000;
-  }
-
-  String _fmt(double v, [int decimals = 2]) {
-    if (v.abs() >= 1000000) return v.toStringAsExponential(2);
-    if (v == v.truncateToDouble() && decimals <= 2) {
-      return v.toInt().toString();
-    }
-    return v.toStringAsFixed(decimals).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-  }
+  String _fmt(double v, [int decimals = 2]) => NumberFormatter.format(v, decimals);
 
   void _applyPreset(Map<String, dynamic> p) {
     HapticFeedback.lightImpact();
@@ -108,9 +78,9 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
     });
   }
 
-  void _showDimensionEditor(String dimensionName, double currentVal, ValueChanged<double> onSubmitted) {
+  Future<void> _showDimensionEditor(String dimensionName, double currentVal, ValueChanged<double> onSubmitted) async {
     final controller = TextEditingController(text: currentVal.toStringAsFixed(currentVal.truncateToDouble() == currentVal ? 0 : 2));
-    showDialog(
+    await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kBtnBase,
@@ -154,6 +124,7 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
         ],
       ),
     );
+    controller.dispose();
   }
 
   void _copyAllSpecs() {
@@ -262,6 +233,7 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
         ],
       ),
     );
+    nameController.dispose();
 
     if (confirmed != null && confirmed.isNotEmpty) {
       final measurement = BoxMeasurement(
@@ -344,7 +316,7 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: Row(
                     children: [
-                      _buildHeaderBtn(
+                      NeumorphicIconButton(
                         icon: Icons.arrow_back_ios_new_rounded,
                         onTap: () => Navigator.pop(context),
                       ),
@@ -363,14 +335,14 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
                       ),
                       const SizedBox(width: 8),
                       // History
-                      _buildHeaderBtn(
+                      NeumorphicIconButton(
                         icon: Icons.history_rounded,
                         tooltip: 'Box History',
                         onTap: _openHistory,
                       ),
                       const SizedBox(width: 8),
                       // Reset view
-                      _buildHeaderBtn(
+                      NeumorphicIconButton(
                         icon: Icons.restart_alt_rounded,
                         tooltip: 'Reset 3D View & Zoom',
                         onTap: () {
@@ -383,7 +355,7 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
                       ),
                       const SizedBox(width: 8),
                       // Copy specs
-                      _buildHeaderBtn(
+                      NeumorphicIconButton(
                         icon: Icons.copy_rounded,
                         tooltip: 'Copy Specs',
                         onTap: _copyAllSpecs,
@@ -491,16 +463,18 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: CustomPaint(
-                  size: const Size(double.infinity, 230),
-                  painter: _Box3DPainter(
-                    length: _length,
-                    width: _width,
-                    height: _height,
-                    unit: _unit,
-                    rotX: _rotX,
-                    rotY: _rotY,
-                    zoom: _zoom,
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    size: const Size(double.infinity, 230),
+                    painter: _Box3DPainter(
+                      length: _length,
+                      width: _width,
+                      height: _height,
+                      unit: _unit,
+                      rotX: _rotX,
+                      rotY: _rotY,
+                      zoom: _zoom,
+                    ),
                   ),
                 ),
               ),
@@ -1076,33 +1050,6 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildHeaderBtn({required IconData icon, required VoidCallback onTap, String? tooltip}) {
-    Widget btn = GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: const BoxDecoration(
-          color: kBtnBase,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
-            BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
-          ],
-        ),
-        child: Icon(icon, color: kTextPrimary, size: 18),
-      ),
-    );
-
-    if (tooltip != null) {
-      return Tooltip(message: tooltip, child: btn);
-    }
-    return btn;
   }
 }
 

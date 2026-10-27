@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/utils/number_formatter.dart';
+import '../features/unit_converter/domain/services/unit_converter_service.dart';
+import '../widgets/neumorphic_icon_button.dart';
 
 class UnitConverterScreen extends StatefulWidget {
   final String? initialValue;
@@ -11,18 +14,13 @@ class UnitConverterScreen extends StatefulWidget {
 }
 
 class _UnitConverterScreenState extends State<UnitConverterScreen> {
+  static const _converterService = UnitConverterService();
+  static const Map<String, List<String>> _units = UnitConverterService.categoriesWithUnits;
+
   String _category = 'Length';
   String _inputValue = '1';
   late String _fromUnit;
   late String _toUnit;
-
-  final Map<String, List<String>> _units = {
-    'Length': ['Meter (m)', 'Kilometer (km)', 'Centimeter (cm)', 'Millimeter (mm)', 'Foot (ft)', 'Inch (in)', 'Mile (mi)', 'Yard (yd)'],
-    'Weight': ['Kilogram (kg)', 'Gram (g)', 'Pound (lb)', 'Ounce (oz)', 'Ton (t)'],
-    'Temperature': ['Celsius (°C)', 'Fahrenheit (°F)', 'Kelvin (K)'],
-    'Speed': ['km/h', 'mph', 'm/s', 'Knot (kn)'],
-    'Area': ['Sq Meter (m²)', 'Sq Km (km²)', 'Sq Foot (ft²)', 'Acre (ac)', 'Hectare (ha)'],
-  };
 
   @override
   void initState() {
@@ -84,107 +82,18 @@ class _UnitConverterScreenState extends State<UnitConverterScreen> {
     });
   }
 
-  double _convertLength(double val, String from, String to) {
-    final toMeters = {
-      'Meter (m)': 1.0,
-      'Kilometer (km)': 1000.0,
-      'Centimeter (cm)': 0.01,
-      'Millimeter (mm)': 0.001,
-      'Foot (ft)': 0.3048,
-      'Inch (in)': 0.0254,
-      'Mile (mi)': 1609.344,
-      'Yard (yd)': 0.9144,
-    };
-    final meters = val * (toMeters[from] ?? 1.0);
-    return meters / (toMeters[to] ?? 1.0);
-  }
-
-  double _convertWeight(double val, String from, String to) {
-    final toKg = {
-      'Kilogram (kg)': 1.0,
-      'Gram (g)': 0.001,
-      'Pound (lb)': 0.45359237,
-      'Ounce (oz)': 0.0283495,
-      'Ton (t)': 1000.0,
-    };
-    final kg = val * (toKg[from] ?? 1.0);
-    return kg / (toKg[to] ?? 1.0);
-  }
-
-  double _convertTemperature(double val, String from, String to) {
-    double celsius;
-    if (from.contains('Celsius')) {
-      celsius = val;
-    } else if (from.contains('Fahrenheit')) {
-      celsius = (val - 32) * 5 / 9;
-    } else {
-      celsius = val - 273.15;
-    }
-
-    if (to.contains('Celsius')) return celsius;
-    if (to.contains('Fahrenheit')) return (celsius * 9 / 5) + 32;
-    return celsius + 273.15;
-  }
-
-  double _convertSpeed(double val, String from, String to) {
-    final toMs = {
-      'm/s': 1.0,
-      'km/h': 0.277778,
-      'mph': 0.44704,
-      'Knot (kn)': 0.514444,
-    };
-    final ms = val * (toMs[from] ?? 1.0);
-    return ms / (toMs[to] ?? 1.0);
-  }
-
-  double _convertArea(double val, String from, String to) {
-    final toSqMeters = {
-      'Sq Meter (m²)': 1.0,
-      'Sq Km (km²)': 1000000.0,
-      'Sq Foot (ft²)': 0.092903,
-      'Acre (ac)': 4046.86,
-      'Hectare (ha)': 10000.0,
-    };
-    final sqM = val * (toSqMeters[from] ?? 1.0);
-    return sqM / (toSqMeters[to] ?? 1.0);
-  }
-
   String _calculateResult() {
     final raw = double.tryParse(_inputValue.trim());
     if (raw == null) return '0';
 
-    double converted;
-    if (_category == 'Length') {
-      converted = _convertLength(raw, _fromUnit, _toUnit);
-    } else if (_category == 'Weight') {
-      converted = _convertWeight(raw, _fromUnit, _toUnit);
-    } else if (_category == 'Temperature') {
-      converted = _convertTemperature(raw, _fromUnit, _toUnit);
-    } else if (_category == 'Speed') {
-      converted = _convertSpeed(raw, _fromUnit, _toUnit);
-    } else {
-      converted = _convertArea(raw, _fromUnit, _toUnit);
-    }
+    final converted = _converterService.convert(
+      category: _category,
+      value: raw,
+      fromUnit: _fromUnit,
+      toUnit: _toUnit,
+    );
 
-    if (converted == converted.truncateToDouble() && converted.abs() < 1e9) {
-      return converted.toInt().toString();
-    }
-    return converted.toStringAsFixed(4).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-  }
-
-  String _addCommas(String raw) {
-    if (raw == 'Error' || raw.isEmpty) return raw;
-    final negative = raw.startsWith('-');
-    final abs      = negative ? raw.substring(1) : raw;
-    final parts    = abs.split('.');
-    final intPart  = parts[0];
-    final buf      = StringBuffer();
-    for (int i = 0; i < intPart.length; i++) {
-      if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
-      buf.write(intPart[i]);
-    }
-    if (parts.length > 1) buf.write('.${parts[1]}');
-    return negative ? '-${buf.toString()}' : buf.toString();
+    return NumberFormatter.format(converted, 4);
   }
 
   @override
@@ -204,7 +113,7 @@ class _UnitConverterScreenState extends State<UnitConverterScreen> {
                   // ── Top Header ──────────────────────────────────────────
                   Row(
                     children: [
-                      _buildHeaderButton(
+                      NeumorphicIconButton(
                         icon: Icons.arrow_back_ios_new_rounded,
                         onTap: () => Navigator.pop(context),
                       ),
@@ -306,7 +215,7 @@ class _UnitConverterScreenState extends State<UnitConverterScreen> {
                               child: _buildValueCard(
                                 label: 'FROM',
                                 selectedUnit: _fromUnit,
-                                value: _addCommas(_inputValue),
+                                value: NumberFormatter.addCommas(_inputValue),
                                 unitList: _units[_category]!,
                                 onUnitChanged: (val) => setState(() => _fromUnit = val!),
                                 isHighlighted: false,
@@ -318,7 +227,7 @@ class _UnitConverterScreenState extends State<UnitConverterScreen> {
                               child: _buildValueCard(
                                 label: 'TO',
                                 selectedUnit: _toUnit,
-                                value: _addCommas(resultStr),
+                                value: NumberFormatter.addCommas(resultStr),
                                 unitList: _units[_category]!,
                                 onUnitChanged: (val) => setState(() => _toUnit = val!),
                                 isHighlighted: true,
@@ -548,31 +457,6 @@ class _UnitConverterScreenState extends State<UnitConverterScreen> {
                   fontWeight: FontWeight.w400,
                 ),
               ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: const BoxDecoration(
-          color: kBtnBase,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
-            BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
-          ],
-        ),
-        child: Icon(icon, color: kTextPrimary, size: 18),
       ),
     );
   }

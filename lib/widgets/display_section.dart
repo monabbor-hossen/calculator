@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 
+import '../core/utils/number_formatter.dart';
+
 /// Shows the expression preview (small, gray) and the current result (large, white).
 /// All font sizes are driven by [AppSizes].
 class DisplaySection extends StatelessWidget {
@@ -22,21 +24,6 @@ class DisplaySection extends StatelessWidget {
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-
-  String _addCommasToNumber(String numStr) {
-    if (numStr == 'Error' || numStr.isEmpty) return numStr;
-    final negative = numStr.startsWith('-');
-    final abs      = negative ? numStr.substring(1) : numStr;
-    final parts    = abs.split('.');
-    final intPart  = parts[0];
-    final buf      = StringBuffer();
-    for (int i = 0; i < intPart.length; i++) {
-      if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
-      buf.write(intPart[i]);
-    }
-    if (parts.length > 1) buf.write('.${parts[1]}');
-    return negative ? '-${buf.toString()}' : buf.toString();
-  }
 
   String _formatText(String raw) {
     if (raw.isEmpty || raw == 'Error') return raw;
@@ -60,7 +47,7 @@ class DisplaySection extends StatelessWidget {
         core = core.substring(0, core.length - 1);
       }
       if (double.tryParse(core) != null) {
-        return '$prefix${_addCommasToNumber(core)}$suffix';
+        return '$prefix${NumberFormatter.addCommas(core)}$suffix';
       }
       return token;
     }).join(' ');

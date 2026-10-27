@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/utils/date_formatter.dart';
+import '../core/utils/number_formatter.dart';
 import '../data/history_db.dart';
 import '../data/tip_calculation_model.dart';
+import '../widgets/neumorphic_icon_button.dart';
 
 class TipHistoryScreen extends StatefulWidget {
   const TipHistoryScreen({super.key});
@@ -39,7 +42,7 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Text(
-          'Deleted split for ${item.currency}${_fmt(item.perPerson)}',
+          'Deleted split for ${item.currency}${NumberFormatter.formatCurrency(item.perPerson)}',
           style: const TextStyle(color: kTextPrimary),
         ),
         action: SnackBarAction(
@@ -88,28 +91,12 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
     }
   }
 
-  String _fmt(double val) => val.toStringAsFixed(2);
-
-  String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
-    final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final timeStr = '$hour:$minute $period';
-
-    if (isToday) return 'Today, $timeStr';
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year} • $timeStr';
-  }
-
   void _copyBreakdown(TipCalculation item) {
-    final text = 'Bill: ${item.currency}${_fmt(item.bill)}\n'
-        'Tip (${item.tipPercent.toInt()}%): ${item.currency}${_fmt(item.tipAmount)}\n'
-        'Total: ${item.currency}${_fmt(item.total)}\n'
+    final text = 'Bill: ${item.currency}${NumberFormatter.formatCurrency(item.bill)}\n'
+        'Tip (${item.tipPercent.toInt()}%): ${item.currency}${NumberFormatter.formatCurrency(item.tipAmount)}\n'
+        'Total: ${item.currency}${NumberFormatter.formatCurrency(item.total)}\n'
         'Split: ${item.people} ${item.people == 1 ? "Person" : "People"}\n'
-        'Each Pays: ${item.currency}${_fmt(item.perPerson)}';
+        'Each Pays: ${item.currency}${NumberFormatter.formatCurrency(item.perPerson)}';
 
     Clipboard.setData(ClipboardData(text: text));
     HapticFeedback.selectionClick();
@@ -139,7 +126,7 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Row(
                     children: [
-                      _buildRoundButton(
+                      NeumorphicIconButton(
                         icon: Icons.arrow_back_ios_new_rounded,
                         onTap: () => Navigator.pop(context),
                       ),
@@ -154,7 +141,7 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
                         ),
                       ),
                       const Spacer(),
-                      _buildRoundButton(
+                      NeumorphicIconButton(
                         icon: Icons.delete_sweep_rounded,
                         color: kOrange,
                         tooltip: 'Clear All History',
@@ -231,7 +218,7 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
                   const Icon(Icons.access_time_rounded, color: kTextSecondary, size: 14),
                   const SizedBox(width: 6),
                   Text(
-                    _formatTimestamp(item.timestamp),
+                    DateFormatter.formatTimestamp(item.timestamp),
                     style: const TextStyle(
                       color: kTextSecondary,
                       fontSize: 12,
@@ -269,7 +256,7 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${item.currency} ${_fmt(item.perPerson)}',
+                    '${item.currency} ${NumberFormatter.formatCurrency(item.perPerson)}',
                     style: const TextStyle(
                       color: kOrange,
                       fontSize: 26,
@@ -305,12 +292,12 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildDetailColumn('BILL', '${item.currency} ${_fmt(item.bill)}'),
+              _buildDetailColumn('BILL', '${item.currency} ${NumberFormatter.formatCurrency(item.bill)}'),
               _buildDetailColumn(
                 'TIP (${item.tipPercent.toInt()}%)',
-                '${item.currency} ${_fmt(item.tipAmount)}',
+                '${item.currency} ${NumberFormatter.formatCurrency(item.tipAmount)}',
               ),
-              _buildDetailColumn('TOTAL', '${item.currency} ${_fmt(item.total)}'),
+              _buildDetailColumn('TOTAL', '${item.currency} ${NumberFormatter.formatCurrency(item.total)}'),
             ],
           ),
           const SizedBox(height: 12),
@@ -462,37 +449,5 @@ class _TipHistoryScreenState extends State<TipHistoryScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildRoundButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    Color color = kTextPrimary,
-    String? tooltip,
-  }) {
-    Widget button = GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: const BoxDecoration(
-          color: kBtnBase,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
-            BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
-          ],
-        ),
-        child: Icon(icon, color: color, size: 18),
-      ),
-    );
-
-    if (tooltip != null) {
-      return Tooltip(message: tooltip, child: button);
-    }
-    return button;
   }
 }

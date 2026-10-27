@@ -1,8 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/utils/date_formatter.dart';
+import '../core/utils/number_formatter.dart';
 import '../data/calculation_model.dart';
 import '../data/history_db.dart';
+import '../widgets/neumorphic_icon_button.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -88,53 +91,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  String _addCommas(String raw) {
-    if (raw == 'Error') return raw;
-    final negative = raw.startsWith('-');
-    final abs      = negative ? raw.substring(1) : raw;
-    final parts    = abs.split('.');
-    final intPart  = parts[0];
-    final buf      = StringBuffer();
-    for (int i = 0; i < intPart.length; i++) {
-      if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
-      buf.write(intPart[i]);
-    }
-    if (parts.length > 1) buf.write('.${parts[1]}');
-    return negative ? '-${buf.toString()}' : buf.toString();
-  }
-
-  String _formatExpression(String raw) {
-    if (raw.isEmpty) return '';
-    return raw.split(' ').map((token) {
-      return double.tryParse(token) != null ? _addCommas(token) : token;
-    }).join(' ');
-  }
-
-  String _formatDate(DateTime dt) {
-    final now = DateTime.now();
-    final difference = now.difference(dt);
-
-    if (difference.inSeconds < 60) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24 && dt.day == now.day) {
-      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-      final period = dt.hour >= 12 ? 'PM' : 'AM';
-      final minute = dt.minute.toString().padLeft(2, '0');
-      return 'Today, $hour:$minute $period';
-    } else {
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-      final period = dt.hour >= 12 ? 'PM' : 'AM';
-      final minute = dt.minute.toString().padLeft(2, '0');
-      return '${months[dt.month - 1]} ${dt.day}, $hour:$minute $period';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -151,9 +107,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: Row(
                     children: [
                       // Back button
-                      _buildIconButton(
+                      NeumorphicIconButton(
                         icon: Icons.arrow_back_ios_new_rounded,
                         tooltip: 'Back to calculator',
+                        size: 44,
+                        iconSize: 20,
                         onTap: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 16),
@@ -174,10 +132,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           if (!snapshot.hasData || snapshot.data!.isEmpty) {
                             return const SizedBox.shrink();
                           }
-                          return _buildIconButton(
+                          return NeumorphicIconButton(
                             icon: Icons.delete_sweep_rounded,
                             color: kOrange,
                             tooltip: 'Clear All',
+                            size: 44,
+                            iconSize: 20,
                             onTap: _clearAll,
                           );
                         },
@@ -230,47 +190,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    Color color = kTextPrimary,
-    String? tooltip,
-  }) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        child: Tooltip(
-          message: tooltip ?? '',
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: kBtnBase,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: kShadowLight,
-                  offset: Offset(-2, -2),
-                  blurRadius: 4,
-                ),
-                BoxShadow(
-                  color: kShadowDark,
-                  offset: Offset(2, 2),
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-            child: Icon(icon, color: color, size: 20),
           ),
         ),
       ),
@@ -333,7 +252,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _formatDate(item.timestamp),
+                      DateFormatter.formatRelative(item.timestamp),
                       style: const TextStyle(
                         color: kTextSecondary,
                         fontSize: 12,
@@ -395,7 +314,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const SizedBox(height: 6),
                 // Expression
                 Text(
-                  _formatExpression(item.expression),
+                  NumberFormatter.formatExpression(item.expression),
                   textAlign: TextAlign.right,
                   style: const TextStyle(
                     color: kTextSecondary,
@@ -407,7 +326,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const SizedBox(height: 2),
                 // Result
                 Text(
-                  _addCommas(item.result),
+                  NumberFormatter.addCommas(item.result),
                   textAlign: TextAlign.right,
                   style: const TextStyle(
                     color: kOrange,

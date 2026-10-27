@@ -7,6 +7,7 @@ import '../logic/calculator_logic.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/calc_button.dart';
 import '../widgets/display_section.dart';
+import '../widgets/neumorphic_icon_button.dart';
 import 'history_screen.dart';
 
 class CalculatorScreen extends StatefulWidget {
@@ -302,82 +303,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _buildMenuButton(AppSizes sizes) {
     final btnSize = (sizes.width * 0.11).clamp(38.0, 48.0);
-    return Tooltip(
-      message: 'Menu & More Features',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(btnSize / 2),
-          onTap: () {
-            HapticFeedback.lightImpact();
-            _scaffoldKey.currentState?.openDrawer();
-          },
-          child: Container(
-            width: btnSize,
-            height: btnSize,
-            decoration: const BoxDecoration(
-              color: kBtnBase,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: kShadowLight,
-                  offset: Offset(-2.5, -2.5),
-                  blurRadius: 5,
-                ),
-                BoxShadow(
-                  color: kShadowDark,
-                  offset: Offset(2.5, 2.5),
-                  blurRadius: 5,
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.menu_rounded,
-              color: kTextPrimary,
-              size: btnSize * 0.50,
-            ),
-          ),
-        ),
-      ),
+    return NeumorphicIconButton(
+      icon: Icons.menu_rounded,
+      size: btnSize,
+      iconSize: btnSize * 0.50,
+      tooltip: 'Menu & More Features',
+      onTap: () => _scaffoldKey.currentState?.openDrawer(),
     );
   }
 
   Widget _buildHistoryButton(AppSizes sizes) {
     final btnSize = (sizes.width * 0.11).clamp(38.0, 48.0);
-    return Tooltip(
-      message: 'History',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(btnSize / 2),
-          onTap: _openHistory,
-          child: Container(
-            width: btnSize,
-            height: btnSize,
-            decoration: const BoxDecoration(
-              color: kBtnBase,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: kShadowLight,
-                  offset: Offset(-2.5, -2.5),
-                  blurRadius: 5,
-                ),
-                BoxShadow(
-                  color: kShadowDark,
-                  offset: Offset(2.5, 2.5),
-                  blurRadius: 5,
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.history_rounded,
-              color: kOrange,
-              size: btnSize * 0.52,
-            ),
-          ),
-        ),
-      ),
+    return NeumorphicIconButton(
+      icon: Icons.history_rounded,
+      color: kOrange,
+      size: btnSize,
+      iconSize: btnSize * 0.52,
+      tooltip: 'History',
+      onTap: _openHistory,
     );
   }
 

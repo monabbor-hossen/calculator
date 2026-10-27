@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/utils/number_formatter.dart';
 import '../data/box_measurement_model.dart';
 import '../data/history_db.dart';
 import '../data/tip_calculation_model.dart';
@@ -277,7 +278,7 @@ class AppDrawer extends StatelessWidget {
                         MaterialPageRoute(builder: (_) => const TipHistoryScreen()),
                       );
                       if (res is TipCalculation) {
-                        onValueSelected(res.perPerson.toStringAsFixed(2));
+                        onValueSelected(NumberFormatter.formatCurrency(res.perPerson));
                       }
                     },
                   ),
@@ -292,7 +293,7 @@ class AppDrawer extends StatelessWidget {
                         MaterialPageRoute(builder: (_) => const BoxHistoryScreen()),
                       );
                       if (res is BoxMeasurement) {
-                        onValueSelected(res.volumeLiters.toStringAsFixed(2));
+                        onValueSelected(NumberFormatter.format(res.volumeLiters, 2));
                       }
                     },
                   ),

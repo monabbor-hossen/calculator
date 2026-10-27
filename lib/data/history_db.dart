@@ -1,11 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import '../features/box_measurement/domain/repositories/box_repository.dart';
+import '../features/calculator/domain/repositories/calculator_repository.dart';
+import '../features/tip_calculator/domain/repositories/tip_repository.dart';
 import 'box_measurement_model.dart';
 import 'calculation_model.dart';
 import 'db_factory.dart';
 import 'tip_calculation_model.dart';
 
-class HistoryDb {
+class HistoryDb implements CalculatorRepository, TipRepository, BoxRepository {
   static final HistoryDb instance = HistoryDb._init();
   static Database? _database;
 
@@ -31,7 +34,7 @@ class HistoryDb {
       onUpgrade: _onUpgrade,
     );
 
-    // Ensure tip_history table exists even if db was already created at version 1
+    // Ensure all tables and performance indexes exist
     try {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS tip_history (
@@ -61,8 +64,11 @@ class HistoryDb {
           timestamp INTEGER NOT NULL
         )
       ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history (timestamp DESC)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_tip_history_timestamp ON tip_history (timestamp DESC)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_box_history_timestamp ON box_history (timestamp DESC)');
     } catch (e) {
-      debugPrint('Error ensuring database tables: $e');
+      debugPrint('Error ensuring database tables and indexes: $e');
     }
 
     return db;
@@ -105,6 +111,9 @@ class HistoryDb {
         timestamp INTEGER NOT NULL
       )
     ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history (timestamp DESC)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tip_history_timestamp ON tip_history (timestamp DESC)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_box_history_timestamp ON box_history (timestamp DESC)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -142,6 +151,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<int> insertCalculation(String expression, String result) async {
     try {
       final db = await database;
@@ -159,6 +169,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<List<Calculation>> getAllHistory() async {
     try {
       final db = await database;
@@ -173,6 +184,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<int> deleteCalculation(int id) async {
     try {
       final db = await database;
@@ -187,6 +199,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<int> clearAllHistory() async {
     try {
       final db = await database;
@@ -198,6 +211,7 @@ class HistoryDb {
   }
 
   // ── Tip & Split Bill History ─────────────────────────────────────────────
+  @override
   Future<int> insertTipCalculation(TipCalculation calc) async {
     try {
       final db = await database;
@@ -210,6 +224,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<List<TipCalculation>> getAllTipHistory() async {
     try {
       final db = await database;
@@ -224,6 +239,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<int> deleteTipCalculation(int id) async {
     try {
       final db = await database;
@@ -238,6 +254,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<int> clearAllTipHistory() async {
     try {
       final db = await database;
@@ -249,6 +266,7 @@ class HistoryDb {
   }
 
   // ── Box Measurement History ──────────────────────────────────────────────
+  @override
   Future<int> insertBoxMeasurement(BoxMeasurement measurement) async {
     try {
       final db = await database;
@@ -261,6 +279,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<List<BoxMeasurement>> getAllBoxHistory() async {
     try {
       final db = await database;
@@ -275,6 +294,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<int> deleteBoxMeasurement(int id) async {
     try {
       final db = await database;
@@ -289,6 +309,7 @@ class HistoryDb {
     }
   }
 
+  @override
   Future<int> clearAllBoxHistory() async {
     try {
       final db = await database;

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/utils/number_formatter.dart';
 import '../data/history_db.dart';
 import '../data/tip_calculation_model.dart';
+import '../features/tip_calculator/domain/services/tip_calculator_service.dart';
+import '../widgets/neumorphic_icon_button.dart';
 import 'tip_history_screen.dart';
 
 class TipCalculatorScreen extends StatefulWidget {
@@ -20,9 +23,9 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
   String _currency = '৳'; // Default to Bangladeshi Taka (৳)
 
   // 0% option included as requested
-  final List<double> _tipOptions = [0.0, 10.0, 15.0, 18.0, 20.0, 25.0];
+  static const List<double> _tipOptions = [0.0, 10.0, 15.0, 18.0, 20.0, 25.0];
 
-  final List<Map<String, String>> _currencyOptions = const [
+  static const List<Map<String, String>> _currencyOptions = [
     {'symbol': '৳', 'code': 'BDT', 'name': 'Bangladeshi Taka'},
     {'symbol': '\$', 'code': 'USD', 'name': 'US Dollar'},
     {'symbol': '€', 'code': 'EUR', 'name': 'Euro'},
@@ -42,12 +45,20 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
     _billInput = init;
   }
 
-  double get _bill => double.tryParse(_billInput.trim()) ?? 0;
-  double get _tipAmount => _bill * (_tipPercent / 100);
-  double get _totalBill => _bill + _tipAmount;
-  double get _perPerson => _splitPeople > 0 ? _totalBill / _splitPeople : _totalBill;
+  static const _tipService = TipCalculatorService();
 
-  String _fmt(double v) => v.toStringAsFixed(2);
+  TipResult get _tipResult => _tipService.calculate(
+    bill: _bill,
+    tipPercent: _tipPercent,
+    people: _splitPeople,
+  );
+
+  double get _bill => double.tryParse(_billInput.trim()) ?? 0;
+  double get _tipAmount => _tipResult.tipAmount;
+  double get _totalBill => _tipResult.totalBill;
+  double get _perPerson => _tipResult.perPerson;
+
+  String _fmt(double v) => NumberFormatter.formatCurrency(v);
 
   void _onKeypadTap(String key) {
     HapticFeedback.lightImpact();
@@ -277,24 +288,27 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
                   // ── Top Header ──────────────────────────────────────────
                   Row(
                     children: [
-                      _buildHeaderButton(
+                      NeumorphicIconButton(
                         icon: Icons.arrow_back_ios_new_rounded,
                         tooltip: 'Back',
                         onTap: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Tip & Split Bill',
-                        style: TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.5,
+                      const Expanded(
+                        child: Text(
+                          'Tip & Split Bill',
+                          style: TextStyle(
+                            color: kTextPrimary,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       // Save to history button
-                      _buildHeaderButton(
+                      NeumorphicIconButton(
                         icon: Icons.bookmark_add_outlined,
                         color: kOrange,
                         tooltip: 'Save to History',
@@ -302,14 +316,14 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
                       ),
                       const SizedBox(width: 8),
                       // Copy summary button
-                      _buildHeaderButton(
+                      NeumorphicIconButton(
                         icon: Icons.copy_rounded,
                         tooltip: 'Copy Breakdown',
                         onTap: _copyBreakdown,
                       ),
                       const SizedBox(width: 8),
                       // History button
-                      _buildHeaderButton(
+                      NeumorphicIconButton(
                         icon: Icons.history_rounded,
                         color: kOrange,
                         tooltip: 'Split History',
@@ -639,37 +653,5 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
         child: Icon(icon, color: color, size: 16),
       ),
     );
-  }
-
-  Widget _buildHeaderButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    Color color = kTextPrimary,
-    String? tooltip,
-  }) {
-    Widget button = GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: const BoxDecoration(
-          color: kBtnBase,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
-            BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
-          ],
-        ),
-        child: Icon(icon, color: color, size: 18),
-      ),
-    );
-
-    if (tooltip != null) {
-      return Tooltip(message: tooltip, child: button);
-    }
-    return button;
   }
 }
