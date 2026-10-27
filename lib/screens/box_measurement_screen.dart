@@ -3,6 +3,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../data/box_measurement_model.dart';
+import '../data/history_db.dart';
+import 'box_history_screen.dart';
 
 class BoxMeasurementScreen extends StatefulWidget {
   final String? initialValue;
@@ -177,6 +180,155 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
     );
   }
 
+  Future<void> _saveToHistory() async {
+    String suggestedName = 'Box ${_fmt(_length)}×${_fmt(_width)}×${_fmt(_height)} $_unit';
+    for (final p in _presets) {
+      if (_length == p['l'] && _width == p['w'] && _height == p['h'] && _unit == p['unit']) {
+        suggestedName = p['name'] as String;
+        break;
+      }
+    }
+
+    final nameController = TextEditingController(text: suggestedName);
+
+    final confirmed = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kBtnBase,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.bookmark_add_rounded, color: kOrange, size: 22),
+            SizedBox(width: 10),
+            Text('Save Box to History', style: TextStyle(color: kTextPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter a label for this 3D box measurement:', style: TextStyle(color: kTextSecondary, fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              style: const TextStyle(color: kTextPrimary, fontSize: 16),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1E1E1E),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1B1B1B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF2C2C2C)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: kOrange, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${_fmt(_length)} × ${_fmt(_width)} × ${_fmt(_height)} $_unit • ${_fmt(_volumeInMeters3 * 1000, 2)} L',
+                      style: const TextStyle(color: kTextSecondary, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: kTextSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kOrange,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(
+              ctx,
+              nameController.text.trim().isEmpty ? suggestedName : nameController.text.trim(),
+            ),
+            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != null && confirmed.isNotEmpty) {
+      final measurement = BoxMeasurement(
+        title: confirmed,
+        length: _length,
+        width: _width,
+        height: _height,
+        unit: _unit,
+        volumeLiters: _volumeInMeters3 * 1000,
+        volumeM3: _volumeInMeters3,
+        surfaceAreaCm2: _surfaceAreaInMeters2 * 10000,
+        volumetricWeightKg: _volumetricWeightKg,
+      );
+
+      await HistoryDb.instance.insertBoxMeasurement(measurement);
+      HapticFeedback.mediumImpact();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: kBtnBase,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Text('Saved "$confirmed" to box history', style: const TextStyle(color: kTextPrimary)),
+            action: SnackBarAction(
+              label: 'View History',
+              textColor: kOrange,
+              onPressed: _openHistory,
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openHistory() async {
+    final selected = await Navigator.push<BoxMeasurement>(
+      context,
+      MaterialPageRoute(builder: (_) => const BoxHistoryScreen()),
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _length = selected.length;
+        _width = selected.width;
+        _height = selected.height;
+        _unit = selected.unit;
+      });
+      HapticFeedback.selectionClick();
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: kBtnBase,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          content: Text(
+            'Loaded "${selected.title}" (${_fmt(selected.length)}×${_fmt(selected.width)}×${_fmt(selected.height)} ${selected.unit})',
+            style: const TextStyle(color: kTextPrimary),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -208,6 +360,13 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      // History
+                      _buildHeaderBtn(
+                        icon: Icons.history_rounded,
+                        tooltip: 'Box History',
+                        onTap: _openHistory,
                       ),
                       const SizedBox(width: 8),
                       // Reset view
@@ -253,8 +412,8 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
                       _buildCalculationResultsCard(),
                       const SizedBox(height: 14),
 
-                      // ── Bottom Action: Use in Calculator ────────────────
-                      _buildUseInCalculatorButton(),
+                      // ── Bottom Action: Save to History & Use in Calculator ──
+                      _buildBottomActionButtons(),
                     ],
                   ),
                 ),
@@ -835,6 +994,47 @@ class _BoxMeasurementScreenState extends State<BoxMeasurementScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  // ── Bottom Action Buttons ──────────────────────────────────────────────────
+  Widget _buildBottomActionButtons() {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: _saveToHistory,
+          child: Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: kBtnBase,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kOrange.withValues(alpha: 0.5), width: 1.2),
+              boxShadow: const [
+                BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
+                BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bookmark_add_rounded, color: kOrange, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Save Box to History',
+                  style: TextStyle(
+                    color: kOrange,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildUseInCalculatorButton(),
+      ],
     );
   }
 

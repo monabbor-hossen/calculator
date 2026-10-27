@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../data/box_measurement_model.dart';
 import '../data/history_db.dart';
 import '../data/tip_calculation_model.dart';
+import '../screens/box_history_screen.dart';
 import '../screens/box_measurement_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/tip_calculator_screen.dart';
@@ -280,19 +282,36 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                   _buildDrawerItem(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Box Measurement History',
+                    subtitle: 'View saved 3D box models',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final res = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const BoxHistoryScreen()),
+                      );
+                      if (res is BoxMeasurement) {
+                        onValueSelected(res.volumeLiters.toStringAsFixed(2));
+                      }
+                    },
+                  ),
+                  _buildDrawerItem(
                     icon: Icons.delete_sweep_rounded,
                     title: 'Clear History',
                     subtitle: 'Delete all saved records',
                     onTap: () async {
                       Navigator.pop(context);
                       await HistoryDb.instance.clearAllHistory();
+                      await HistoryDb.instance.clearAllTipHistory();
+                      await HistoryDb.instance.clearAllBoxHistory();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             backgroundColor: kBtnBase,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            content: const Text('History cleared', style: TextStyle(color: kTextPrimary)),
+                            content: const Text('All history cleared', style: TextStyle(color: kTextPrimary)),
                             duration: const Duration(seconds: 1),
                           ),
                         );
