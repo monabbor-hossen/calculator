@@ -31,7 +31,7 @@ class _CalcButtonState extends State<CalcButton> {
   bool _pressed = false;
 
   static const _operatorLabels = {'÷', '×', '−', '+', '='};
-  static const _accentLabels   = {'+/-', '%'};
+  static const _accentLabels   = {'+/-', '%', '(', ')'};
 
   Color get _labelColor {
     if (widget.isActive) return Colors.white;

@@ -1,12 +1,11 @@
-/// Pure calculator logic — no Flutter/UI dependencies.
+import 'expression_parser.dart';
+
+/// Expression-based calculator logic supporting standard BODMAS/PEMDAS precedence,
+/// parentheses grouping `(` and `)`, live preview calculation, and error handling.
 class CalculatorLogic {
   String display = '0';
   String preview = '';
 
-  double _operand1 = 0;
-  String _operator = '';
-  bool _newInput = true;
-  bool _hasDecimal = false;
   bool _justCalculated = false;
 
   // ── Public entry point ────────────────────────────────────────────────────
@@ -18,6 +17,10 @@ class CalculatorLogic {
         _clearEntry();
       case '⌫':
         backspace();
+      case '(':
+        _addOpenParen();
+      case ')':
+        _addCloseParen();
       case '+/-':
         _negate();
       case '%':
@@ -26,7 +29,7 @@ class CalculatorLogic {
       case '×':
       case '−':
       case '+':
-        _setOperator(value);
+        _addOperator(value);
       case '=':
         _calculate();
       case '.':
@@ -36,50 +39,42 @@ class CalculatorLogic {
     }
   }
 
-  String get activeOperator => _operator;
+  String get activeOperator {
+    final trimmed = display.trim();
+    if (trimmed.endsWith('+')) return '+';
+    if (trimmed.endsWith('−') || trimmed.endsWith('-')) return '−';
+    if (trimmed.endsWith('×') || trimmed.endsWith('*')) return '×';
+    if (trimmed.endsWith('÷') || trimmed.endsWith('/')) return '÷';
+    return '';
+  }
 
-  bool get canClearEntry => display != '0' && !_justCalculated;
+  bool get canClearEntry => display != '0';
 
   void backspace() {
     if (_justCalculated) {
       _justCalculated = false;
-      _newInput = false;
+      display = '0';
       preview = '';
-      if (display.length > 1) {
-        display = display.substring(0, display.length - 1);
-      } else {
-        display = '0';
-        _newInput = true;
-      }
-      return;
-    }
-
-    if (_operator.isNotEmpty && _newInput) {
-      _operator = '';
-      preview = '';
-      _newInput = false;
       return;
     }
 
     if (display == '0') return;
 
-    if (_newInput) {
-      _newInput = false;
-    }
-
-    if (display.length > 1) {
-      if (display.endsWith('.')) {
-        _hasDecimal = false;
-      }
+    if (display.endsWith(' + ') ||
+        display.endsWith(' − ') ||
+        display.endsWith(' × ') ||
+        display.endsWith(' ÷ ')) {
+      display = display.substring(0, display.length - 3);
+    } else if (display.length > 1) {
       display = display.substring(0, display.length - 1);
-      if (display == '-' || display == '-0') {
-        display = '0';
-        _newInput = true;
-      }
     } else {
       display = '0';
-      _newInput = true;
     }
+
+    if (display.isEmpty) {
+      display = '0';
+    }
+
     _updateLivePreview();
   }
 
@@ -88,8 +83,6 @@ class CalculatorLogic {
     final val = double.tryParse(clean);
     if (val != null) {
       display = _fmt(val);
-      _newInput = true;
-      _hasDecimal = display.contains('.');
       _justCalculated = false;
       _updateLivePreview();
     }
@@ -98,10 +91,6 @@ class CalculatorLogic {
   void loadValue(String val) {
     display = val;
     preview = '';
-    _operand1 = double.tryParse(val) ?? 0;
-    _operator = '';
-    _newInput = true;
-    _hasDecimal = val.contains('.');
     _justCalculated = false;
   }
 
@@ -109,123 +98,195 @@ class CalculatorLogic {
   void _reset() {
     display = '0';
     preview = '';
-    _operand1 = 0;
-    _operator = '';
-    _newInput = true;
-    _hasDecimal = false;
     _justCalculated = false;
   }
 
   void _clearEntry() {
     display = '0';
-    _newInput = true;
-    _hasDecimal = false;
-    _updateLivePreview();
+    preview = '';
+    _justCalculated = false;
   }
 
-  void _negate() {
-    final val = (double.tryParse(display) ?? 0) * -1;
-    display = _fmt(val);
-  }
-
-  void _percent() {
-    final val = (double.tryParse(display) ?? 0) / 100;
-    display = _fmt(val);
-    _newInput = true;
-    _hasDecimal = display.contains('.');
-  }
-
-  void _addDigit(String digit) {
-    if (_newInput || _justCalculated) {
-      display = digit;
-      _newInput = false;
-      _hasDecimal = false;
+  void _addOpenParen() {
+    if (_justCalculated || display == '0' || display == 'Error') {
+      display = '(';
       _justCalculated = false;
     } else {
-      final clean = display.replaceAll('-', '').replaceAll('.', '');
-      if (display == '0') {
-        display = digit;
-      } else if (clean.length < 9) {
-        display += digit;
+      final trimmed = display.trim();
+      final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
+      // If after digit, close paren, or percent, add implicit multiplication: ' × ('
+      if (_isDigit(last) || last == ')' || last == '%') {
+        display += ' × (';
+      } else {
+        display += '(';
       }
     }
     _updateLivePreview();
   }
 
-  void _addDecimal() {
-    if (_newInput || _justCalculated) {
-      display = '0.';
-      _newInput = false;
-      _hasDecimal = true;
+  void _addCloseParen() {
+    if (display == '0' || display == 'Error' || _justCalculated) return;
+
+    final openCount = '('.allMatches(display).length;
+    final closeCount = ')'.allMatches(display).length;
+    final trimmed = display.trim();
+    final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
+
+    // Can only close if there is an unclosed '(' and not immediately after an operator or '('
+    if (openCount > closeCount && !_isOperator(last) && last != '(') {
+      display += ')';
+      _updateLivePreview();
+    }
+  }
+
+  void _addOperator(String op) {
+    if (display == 'Error') {
+      display = '0';
       _justCalculated = false;
-    } else if (!_hasDecimal) {
-      display += '.';
-      _hasDecimal = true;
+    }
+
+    if (_justCalculated) {
+      _justCalculated = false;
+      display = '$display $op ';
+      _updateLivePreview();
+      return;
+    }
+
+    if (display.endsWith(' + ') ||
+        display.endsWith(' − ') ||
+        display.endsWith(' × ') ||
+        display.endsWith(' ÷ ')) {
+      // Replace the trailing operator
+      display = '${display.substring(0, display.length - 3)} $op ';
+    } else if (display.endsWith('(')) {
+      if (op == '−') {
+        display += '-';
+      }
+    } else if (display == '0') {
+      if (op == '−') {
+        display = '-';
+      }
+    } else {
+      display += ' $op ';
     }
     _updateLivePreview();
   }
 
-  void _setOperator(String op) {
-    if (_operator.isNotEmpty && !_newInput) {
-      _calculate(keepOperator: true);
+  void _addDigit(String digit) {
+    if (_justCalculated || display == '0' || display == 'Error') {
+      display = digit;
+      _justCalculated = false;
+    } else if (display.endsWith(')')) {
+      display += ' × $digit';
+    } else {
+      display += digit;
     }
-    _operand1 = double.tryParse(display) ?? 0;
-    _operator = op;
-    preview = '${_fmt(_operand1)} $op';
-    _newInput = true;
-    _hasDecimal = false;
-    _justCalculated = false;
+    _updateLivePreview();
   }
 
-  void _calculate({bool keepOperator = false}) {
-    if (_operator.isEmpty) return;
+  void _addDecimal() {
+    if (_justCalculated || display == '0' || display == 'Error') {
+      display = '0.';
+      _justCalculated = false;
+    } else if (display.endsWith(' ') || display.endsWith('(')) {
+      display += '0.';
+    } else {
+      // Check if current number chunk already contains a dot
+      final lastChunk = display.split(RegExp(r'[ +−×÷()]')).last;
+      if (!lastChunk.contains('.')) {
+        display += '.';
+      }
+    }
+    _updateLivePreview();
+  }
 
-    final operand2 = double.tryParse(display) ?? 0;
-    final double result;
+  void _negate() {
+    if (display == '0' || display == 'Error') return;
 
-    switch (_operator) {
-      case '+':
-        result = _operand1 + operand2;
-      case '−':
-        result = _operand1 - operand2;
-      case '×':
-        result = _operand1 * operand2;
-      case '÷':
-        if (operand2 == 0) {
-          display = 'Error';
-          preview = '';
-          _operator = '';
-          _newInput = true;
-          return;
-        }
-        result = _operand1 / operand2;
-      default:
-        return;
+    if (_justCalculated) {
+      final val = double.tryParse(display);
+      if (val != null) {
+        display = _fmt(-val);
+        _justCalculated = false;
+        _updateLivePreview();
+      }
+      return;
     }
 
-    if (!keepOperator) {
-      preview = '${_fmt(_operand1)} $_operator ${_fmt(operand2)} =';
-      _operator = '';
+    if (display.startsWith('-(') && display.endsWith(')')) {
+      display = display.substring(2, display.length - 1);
+    } else if (display.startsWith('-')) {
+      display = display.substring(1);
+    } else {
+      display = '-($display)';
     }
+    _updateLivePreview();
+  }
 
-    display = _fmt(result);
-    _operand1 = result;
-    _newInput = true;
-    _hasDecimal = display.contains('.');
-    _justCalculated = true;
+  void _percent() {
+    if (display == '0' || display == 'Error') return;
+    final trimmed = display.trim();
+    final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
+    if (_isDigit(last) || last == ')') {
+      display += '%';
+      _updateLivePreview();
+    }
+  }
+
+  void _calculate() {
+    if (display == 'Error') return;
+
+    final result = ExpressionParser.tryEvaluate(display);
+    if (result != null) {
+      preview = '$display =';
+      display = _fmt(result);
+      _justCalculated = true;
+    } else {
+      preview = '$display =';
+      display = 'Error';
+      _justCalculated = true;
+    }
   }
 
   void _updateLivePreview() {
-    if (_operator.isNotEmpty) {
-      preview = '${_fmt(_operand1)} $_operator $display';
+    if (display == '0' || display == 'Error' || _justCalculated) {
+      preview = '';
+      return;
+    }
+
+    // Only show live preview if there's an operation or grouping in display
+    final hasMath = display.contains('+') ||
+        display.contains('−') ||
+        display.contains('×') ||
+        display.contains('÷') ||
+        display.contains('(') ||
+        display.contains('%');
+
+    if (hasMath) {
+      final result = ExpressionParser.tryEvaluatePreview(display);
+      if (result != null) {
+        preview = '= ${_fmt(result)}';
+      } else {
+        preview = '';
+      }
     } else {
       preview = '';
     }
   }
 
+  bool _isDigit(String ch) {
+    if (ch.isEmpty) return false;
+    final code = ch.codeUnitAt(0);
+    return code >= 48 && code <= 57;
+  }
+
+  bool _isOperator(String ch) {
+    return ch == '+' || ch == '−' || ch == '-' || ch == '×' || ch == '*' || ch == '÷' || ch == '/';
+  }
+
   /// Format a double: prefer integer string, otherwise trim trailing zeros.
   String _fmt(double value) {
-    if (value == value.truncateToDouble() && value.abs() < 1e9) {
+    if (value == value.truncateToDouble() && value.abs() < 1e12) {
       return value.toInt().toString();
     }
     return value

@@ -37,10 +37,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _onTap(String label) {
-    final hadOperator = _logic.activeOperator.isNotEmpty;
+    final prevDisplay = _logic.display;
     setState(() => _logic.input(label));
-    if (label == '=' && hadOperator && _logic.display != 'Error') {
-      HistoryDb.instance.insertCalculation(_logic.preview, _logic.display);
+    if (label == '=' && _logic.display != 'Error' && _logic.preview.isNotEmpty) {
+      final expr = _logic.preview.endsWith('=')
+          ? _logic.preview.substring(0, _logic.preview.length - 1).trim()
+          : prevDisplay;
+      HistoryDb.instance.insertCalculation(expr, _logic.display);
     }
   }
 
@@ -193,6 +196,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           return KeyEventResult.handled;
         case '%':
           _onTap('%');
+          return KeyEventResult.handled;
+        case '(':
+          _onTap('(');
+          return KeyEventResult.handled;
+        case ')':
+          _onTap(')');
           return KeyEventResult.handled;
         case 'c':
         case 'C':
@@ -362,7 +371,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final clearLabel = _logic.canClearEntry ? 'C' : 'AC';
     return Column(
       children: [
-        _buttonRow([clearLabel, '+/-', '%', '÷'], sizes),
+        _buttonRow([clearLabel, '(', ')', '÷'], sizes),
         SizedBox(height: gap),
         _buttonRow(['7', '8', '9', '×'], sizes),
         SizedBox(height: gap),
@@ -394,7 +403,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         HapticFeedback.mediumImpact();
                         _onTap('AC');
                       }
-                    : null,
+                    : labels[i] == '('
+                        ? () {
+                            HapticFeedback.lightImpact();
+                            _onTap('+/-');
+                          }
+                        : labels[i] == ')'
+                            ? () {
+                                HapticFeedback.lightImpact();
+                                _onTap('%');
+                              }
+                            : null,
               ),
             ),
           ],

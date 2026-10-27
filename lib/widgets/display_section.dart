@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
@@ -21,10 +21,10 @@ class DisplaySection extends StatelessWidget {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  String _addCommas(String raw) {
-    if (raw == 'Error') return raw;
-    final negative = raw.startsWith('-');
-    final abs      = negative ? raw.substring(1) : raw;
+  String _addCommasToNumber(String numStr) {
+    if (numStr == 'Error' || numStr.isEmpty) return numStr;
+    final negative = numStr.startsWith('-');
+    final abs      = negative ? numStr.substring(1) : numStr;
     final parts    = abs.split('.');
     final intPart  = parts[0];
     final buf      = StringBuffer();
@@ -36,10 +36,31 @@ class DisplaySection extends StatelessWidget {
     return negative ? '-${buf.toString()}' : buf.toString();
   }
 
-  String _formatPreview(String raw) {
-    if (raw.isEmpty) return '';
+  String _formatText(String raw) {
+    if (raw.isEmpty || raw == 'Error') return raw;
     return raw.split(' ').map((token) {
-      return double.tryParse(token) != null ? _addCommas(token) : token;
+      if (token == '+' || token == '−' || token == '×' || token == '÷' || token == '=') {
+        return token;
+      }
+      var prefix = '';
+      var suffix = '';
+      var core = token;
+      while (core.startsWith('(')) {
+        prefix += '(';
+        core = core.substring(1);
+      }
+      while (core.endsWith(')')) {
+        suffix = ')$suffix';
+        core = core.substring(0, core.length - 1);
+      }
+      if (core.endsWith('%')) {
+        suffix = '%$suffix';
+        core = core.substring(0, core.length - 1);
+      }
+      if (double.tryParse(core) != null) {
+        return '$prefix${_addCommasToNumber(core)}$suffix';
+      }
+      return token;
     }).join(' ');
   }
 
@@ -83,7 +104,7 @@ class DisplaySection extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerRight,
                 child: Text(
-                  _formatPreview(preview),
+                  _formatText(preview),
                   maxLines:  1,
                   textAlign: TextAlign.right,
                   style: TextStyle(
@@ -109,7 +130,7 @@ class DisplaySection extends StatelessWidget {
                   letterSpacing: -2,
                 ),
                 child: Text(
-                  _addCommas(display),
+                  _formatText(display),
                   maxLines:  1,
                   textAlign: TextAlign.right,
                 ),
