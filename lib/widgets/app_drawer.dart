@@ -73,16 +73,30 @@ class AppDrawer extends StatelessWidget {
           'About Calculator',
           style: TextStyle(color: kTextPrimary, fontSize: 18, fontWeight: FontWeight.w600),
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: const [
+                  BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
+                  BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset('assets/logo_clean.png', fit: BoxFit.cover),
+            ),
+            const SizedBox(height: 14),
+            const Text(
               'Neumorphic Calculator App',
               style: TextStyle(color: kOrange, fontWeight: FontWeight.w600, fontSize: 15),
             ),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               '• Cross-platform SQLite offline history\n'
               '• Unit converter & Tip calculator\n'
               '• 3D Box visualizer & measurements\n'
@@ -90,8 +104,8 @@ class AppDrawer extends StatelessWidget {
               '• Gesture backspace & tactile interactions',
               style: TextStyle(color: kTextSecondary, height: 1.5, fontSize: 13),
             ),
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 12),
+            const Text(
               'Version 1.1.0',
               style: TextStyle(color: kTextSecondary, fontSize: 11),
             ),
@@ -147,15 +161,21 @@ class AppDrawer extends StatelessWidget {
                   Container(
                     width: 52,
                     height: 52,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: kBtnBase,
-                      shape: BoxShape.circle,
-                      boxShadow: [
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
                         BoxShadow(color: kShadowLight, offset: Offset(-2, -2), blurRadius: 4),
                         BoxShadow(color: kShadowDark, offset: Offset(2, 2), blurRadius: 4),
                       ],
                     ),
-                    child: const Icon(Icons.calculate_rounded, color: kOrange, size: 28),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/logo_clean.png',
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   const Column(
