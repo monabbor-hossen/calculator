@@ -10,6 +10,7 @@ class DisplaySection extends StatelessWidget {
   final String preview;
   final AppSizes sizes;
   final VoidCallback? onBackspace;
+  final String? angleMode;
 
   const DisplaySection({
     super.key,
@@ -17,6 +18,7 @@ class DisplaySection extends StatelessWidget {
     required this.preview,
     required this.sizes,
     this.onBackspace,
+    this.angleMode,
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -96,6 +98,29 @@ class DisplaySection extends StatelessWidget {
           mainAxisAlignment:  MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            if (angleMode != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF222222),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF333333)),
+                  ),
+                  child: Text(
+                    angleMode!,
+                    style: const TextStyle(
+                      color: kOrange,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+            ],
             // ── Preview expression ────────────────────────────────────────────
             AnimatedOpacity(
               duration: const Duration(milliseconds: 200),

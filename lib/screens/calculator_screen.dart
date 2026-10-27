@@ -20,6 +20,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   final CalculatorLogic _logic = CalculatorLogic();
   final FocusNode _focusNode = FocusNode();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _showScientific = false;
 
   @override
   void initState() {
@@ -197,6 +198,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         case '%':
           _onTap('%');
           return KeyEventResult.handled;
+        case '^':
+          _onTap('^');
+          return KeyEventResult.handled;
+        case '!':
+          _onTap('!');
+          return KeyEventResult.handled;
         case '(':
           _onTap('(');
           return KeyEventResult.handled;
@@ -258,18 +265,27 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         ),
                         // Display
                         Expanded(
-                          flex: 3,
+                          flex: _showScientific ? 2 : 3,
                           child: DisplaySection(
                             display: _logic.display,
                             preview: _logic.preview,
                             sizes:   sizes,
                             onBackspace: _onBackspace,
+                            angleMode: _showScientific ? (_logic.isRadians ? 'RAD' : 'DEG') : null,
                           ),
                         ),
-                        SizedBox(height: sizes.gap * 1.5),
+                        SizedBox(height: sizes.gap),
+                        // Calculation Options Toolbar (%, √, x², +/-, π, fx)
+                        _buildCalculationToolbar(sizes),
+                        // Expanded Scientific Panel (if _showScientific)
+                        if (_showScientific) ...[
+                          SizedBox(height: sizes.gap * 0.7),
+                          _buildScientificPanel(sizes),
+                        ],
+                        SizedBox(height: sizes.gap),
                         // Button grid
                         Expanded(
-                          flex: 7,
+                          flex: _showScientific ? 6 : 7,
                           child: _buildGrid(sizes),
                         ),
                       ],
@@ -359,6 +375,134 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               color: kOrange,
               size: btnSize * 0.52,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Calculation Options Toolbar & Scientific Panel ───────────────────────
+  Widget _buildCalculationToolbar(AppSizes sizes) {
+    final height = (sizes.height * 0.052).clamp(36.0, 44.0);
+    final gap = sizes.gap * 0.8;
+    return SizedBox(
+      height: height,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _buildToolBtn(label: '%', onTap: () => _onTap('%'), isAccent: true)),
+          SizedBox(width: gap),
+          Expanded(child: _buildToolBtn(label: '√', onTap: () => _onTap('√'), isAccent: true)),
+          SizedBox(width: gap),
+          Expanded(child: _buildToolBtn(label: 'x²', onTap: () => _onTap('x²'), isAccent: true)),
+          SizedBox(width: gap),
+          Expanded(child: _buildToolBtn(label: '+/-', onTap: () => _onTap('+/-'), isAccent: true)),
+          SizedBox(width: gap),
+          Expanded(child: _buildToolBtn(label: 'π', onTap: () => _onTap('π'), isAccent: true)),
+          SizedBox(width: gap),
+          Expanded(
+            child: _buildToolBtn(
+              label: 'fx',
+              isActive: _showScientific,
+              onTap: () => setState(() => _showScientific = !_showScientific),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScientificPanel(AppSizes sizes) {
+    final height = (sizes.height * 0.046).clamp(32.0, 40.0);
+    final gap = sizes.gap * 0.7;
+    return Column(
+      children: [
+        // Row 1: DEG/RAD, sin, cos, tan, ^ (xʸ)
+        SizedBox(
+          height: height,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildToolBtn(
+                  label: _logic.isRadians ? 'RAD' : 'DEG',
+                  isActive: _logic.isRadians,
+                  fontSize: 11,
+                  onTap: () => setState(() => _logic.toggleAngleMode()),
+                ),
+              ),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: 'sin', fontSize: 13, onTap: () => _onTap('sin'))),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: 'cos', fontSize: 13, onTap: () => _onTap('cos'))),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: 'tan', fontSize: 13, onTap: () => _onTap('tan'))),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: '^', fontSize: 14, isAccent: true, onTap: () => _onTap('^'))),
+            ],
+          ),
+        ),
+        SizedBox(height: gap),
+        // Row 2: log, ln, x!, 1/x, e
+        SizedBox(
+          height: height,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _buildToolBtn(label: 'log', fontSize: 13, onTap: () => _onTap('log'))),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: 'ln', fontSize: 13, onTap: () => _onTap('ln'))),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: 'x!', fontSize: 13, onTap: () => _onTap('!'))),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: '1/x', fontSize: 12, onTap: () => _onTap('1/x'))),
+              SizedBox(width: gap),
+              Expanded(child: _buildToolBtn(label: 'e', fontSize: 14, isAccent: true, onTap: () => _onTap('e'))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildToolBtn({
+    required String label,
+    required VoidCallback onTap,
+    bool isActive = false,
+    bool isAccent = false,
+    double? fontSize,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isActive ? kOrange : kBtnBase,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: isActive ? kOrange.withValues(alpha: 0.35) : kShadowLight,
+              offset: const Offset(-1.5, -1.5),
+              blurRadius: 3,
+            ),
+            BoxShadow(
+              color: kShadowDark,
+              offset: const Offset(1.5, 1.5),
+              blurRadius: 3,
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive
+                ? Colors.white
+                : (isAccent ? kOrange : kTextPrimary),
+            fontSize: fontSize ?? 14,
+            fontWeight: isActive || isAccent ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
       ),

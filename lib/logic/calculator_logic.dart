@@ -1,10 +1,11 @@
 import 'expression_parser.dart';
 
 /// Expression-based calculator logic supporting standard BODMAS/PEMDAS precedence,
-/// parentheses grouping `(` and `)`, live preview calculation, and error handling.
+/// parentheses grouping `(` and `)`, scientific functions, live preview, and error handling.
 class CalculatorLogic {
   String display = '0';
   String preview = '';
+  bool isRadians = false;
 
   bool _justCalculated = false;
 
@@ -25,6 +26,30 @@ class CalculatorLogic {
         _negate();
       case '%':
         _percent();
+      case '√':
+        _addFunction('√');
+      case 'x²':
+        _addSquare();
+      case '^':
+        _addOperator('^');
+      case 'π':
+        _addConstant('π');
+      case 'e':
+        _addConstant('e');
+      case 'sin':
+        _addFunction('sin');
+      case 'cos':
+        _addFunction('cos');
+      case 'tan':
+        _addFunction('tan');
+      case 'log':
+        _addFunction('log');
+      case 'ln':
+        _addFunction('ln');
+      case '!':
+        _addFactorial();
+      case '1/x':
+        _addReciprocal();
       case '÷':
       case '×':
       case '−':
@@ -39,12 +64,18 @@ class CalculatorLogic {
     }
   }
 
+  void toggleAngleMode() {
+    isRadians = !isRadians;
+    _updateLivePreview();
+  }
+
   String get activeOperator {
     final trimmed = display.trim();
     if (trimmed.endsWith('+')) return '+';
     if (trimmed.endsWith('−') || trimmed.endsWith('-')) return '−';
     if (trimmed.endsWith('×') || trimmed.endsWith('*')) return '×';
     if (trimmed.endsWith('÷') || trimmed.endsWith('/')) return '÷';
+    if (trimmed.endsWith('^')) return '^';
     return '';
   }
 
@@ -63,8 +94,18 @@ class CalculatorLogic {
     if (display.endsWith(' + ') ||
         display.endsWith(' − ') ||
         display.endsWith(' × ') ||
-        display.endsWith(' ÷ ')) {
+        display.endsWith(' ÷ ') ||
+        display.endsWith(' ^ ')) {
       display = display.substring(0, display.length - 3);
+    } else if (display.endsWith('sin(') ||
+        display.endsWith('cos(') ||
+        display.endsWith('tan(') ||
+        display.endsWith('log(')) {
+      display = display.substring(0, display.length - 4);
+    } else if (display.endsWith('ln(')) {
+      display = display.substring(0, display.length - 3);
+    } else if (display.endsWith('√(')) {
+      display = display.substring(0, display.length - 2);
     } else if (display.length > 1) {
       display = display.substring(0, display.length - 1);
     } else {
@@ -114,8 +155,7 @@ class CalculatorLogic {
     } else {
       final trimmed = display.trim();
       final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
-      // If after digit, close paren, or percent, add implicit multiplication: ' × ('
-      if (_isDigit(last) || last == ')' || last == '%') {
+      if (_isDigit(last) || last == ')' || last == '%' || last == '!' || last == 'π' || last == 'e') {
         display += ' × (';
       } else {
         display += '(';
@@ -132,11 +172,67 @@ class CalculatorLogic {
     final trimmed = display.trim();
     final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
 
-    // Can only close if there is an unclosed '(' and not immediately after an operator or '('
     if (openCount > closeCount && !_isOperator(last) && last != '(') {
       display += ')';
       _updateLivePreview();
     }
+  }
+
+  void _addFunction(String fn) {
+    final fnCall = '$fn(';
+    if (_justCalculated || display == '0' || display == 'Error') {
+      display = fnCall;
+      _justCalculated = false;
+    } else {
+      final trimmed = display.trim();
+      final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
+      if (_isDigit(last) || last == ')' || last == '%' || last == '!' || last == 'π' || last == 'e') {
+        display += ' × $fnCall';
+      } else {
+        display += fnCall;
+      }
+    }
+    _updateLivePreview();
+  }
+
+  void _addSquare() {
+    if (display == '0' || display == 'Error') return;
+    if (display.endsWith(' ') || display.endsWith('(')) return;
+    display += '^2';
+    _updateLivePreview();
+  }
+
+  void _addConstant(String c) {
+    if (_justCalculated || display == '0' || display == 'Error') {
+      display = c;
+      _justCalculated = false;
+    } else {
+      final trimmed = display.trim();
+      final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
+      if (_isDigit(last) || last == ')' || last == '%' || last == '!' || last == 'π' || last == 'e') {
+        display += ' × $c';
+      } else {
+        display += c;
+      }
+    }
+    _updateLivePreview();
+  }
+
+  void _addFactorial() {
+    if (display == '0' || display == 'Error') return;
+    final trimmed = display.trim();
+    final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
+    if (_isDigit(last) || last == ')' || last == 'π' || last == 'e') {
+      display += '!';
+      _updateLivePreview();
+    }
+  }
+
+  void _addReciprocal() {
+    if (display == '0' || display == 'Error') return;
+    display = '1 ÷ ($display)';
+    _justCalculated = false;
+    _updateLivePreview();
   }
 
   void _addOperator(String op) {
@@ -155,7 +251,8 @@ class CalculatorLogic {
     if (display.endsWith(' + ') ||
         display.endsWith(' − ') ||
         display.endsWith(' × ') ||
-        display.endsWith(' ÷ ')) {
+        display.endsWith(' ÷ ') ||
+        display.endsWith(' ^ ')) {
       // Replace the trailing operator
       display = '${display.substring(0, display.length - 3)} $op ';
     } else if (display.endsWith('(')) {
@@ -176,7 +273,7 @@ class CalculatorLogic {
     if (_justCalculated || display == '0' || display == 'Error') {
       display = digit;
       _justCalculated = false;
-    } else if (display.endsWith(')')) {
+    } else if (display.endsWith(')') || display.endsWith('%') || display.endsWith('π') || display.endsWith('e')) {
       display += ' × $digit';
     } else {
       display += digit;
@@ -191,8 +288,7 @@ class CalculatorLogic {
     } else if (display.endsWith(' ') || display.endsWith('(')) {
       display += '0.';
     } else {
-      // Check if current number chunk already contains a dot
-      final lastChunk = display.split(RegExp(r'[ +−×÷()]')).last;
+      final lastChunk = display.split(RegExp(r'[ +−×÷()^!]')).last;
       if (!lastChunk.contains('.')) {
         display += '.';
       }
@@ -227,7 +323,7 @@ class CalculatorLogic {
     if (display == '0' || display == 'Error') return;
     final trimmed = display.trim();
     final last = trimmed.isNotEmpty ? trimmed[trimmed.length - 1] : '';
-    if (_isDigit(last) || last == ')') {
+    if (_isDigit(last) || last == ')' || last == 'π' || last == 'e') {
       display += '%';
       _updateLivePreview();
     }
@@ -236,7 +332,7 @@ class CalculatorLogic {
   void _calculate() {
     if (display == 'Error') return;
 
-    final result = ExpressionParser.tryEvaluate(display);
+    final result = ExpressionParser.tryEvaluate(display, isRadians: isRadians);
     if (result != null) {
       preview = '$display =';
       display = _fmt(result);
@@ -254,16 +350,23 @@ class CalculatorLogic {
       return;
     }
 
-    // Only show live preview if there's an operation or grouping in display
     final hasMath = display.contains('+') ||
         display.contains('−') ||
         display.contains('×') ||
         display.contains('÷') ||
+        display.contains('^') ||
+        display.contains('√') ||
+        display.contains('sin') ||
+        display.contains('cos') ||
+        display.contains('tan') ||
+        display.contains('log') ||
+        display.contains('ln') ||
+        display.contains('!') ||
         display.contains('(') ||
         display.contains('%');
 
     if (hasMath) {
-      final result = ExpressionParser.tryEvaluatePreview(display);
+      final result = ExpressionParser.tryEvaluatePreview(display, isRadians: isRadians);
       if (result != null) {
         preview = '= ${_fmt(result)}';
       } else {
@@ -281,7 +384,14 @@ class CalculatorLogic {
   }
 
   bool _isOperator(String ch) {
-    return ch == '+' || ch == '−' || ch == '-' || ch == '×' || ch == '*' || ch == '÷' || ch == '/';
+    return ch == '+' ||
+        ch == '−' ||
+        ch == '-' ||
+        ch == '×' ||
+        ch == '*' ||
+        ch == '÷' ||
+        ch == '/' ||
+        ch == '^';
   }
 
   /// Format a double: prefer integer string, otherwise trim trailing zeros.
