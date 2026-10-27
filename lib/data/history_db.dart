@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import 'box_measurement_model.dart';
 import 'calculation_model.dart';
 import 'db_factory.dart';
 import 'tip_calculation_model.dart';
@@ -25,7 +26,7 @@ class HistoryDb {
 
     final db = await openDatabase(
       fileName,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -45,8 +46,23 @@ class HistoryDb {
           timestamp INTEGER NOT NULL
         )
       ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS box_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          length REAL NOT NULL,
+          width REAL NOT NULL,
+          height REAL NOT NULL,
+          unit TEXT NOT NULL,
+          volumeLiters REAL NOT NULL,
+          volumeM3 REAL NOT NULL,
+          surfaceAreaCm2 REAL NOT NULL,
+          volumetricWeightKg REAL NOT NULL,
+          timestamp INTEGER NOT NULL
+        )
+      ''');
     } catch (e) {
-      debugPrint('Error ensuring tip_history table: $e');
+      debugPrint('Error ensuring database tables: $e');
     }
 
     return db;
@@ -74,6 +90,21 @@ class HistoryDb {
         timestamp INTEGER NOT NULL
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS box_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        length REAL NOT NULL,
+        width REAL NOT NULL,
+        height REAL NOT NULL,
+        unit TEXT NOT NULL,
+        volumeLiters REAL NOT NULL,
+        volumeM3 REAL NOT NULL,
+        surfaceAreaCm2 REAL NOT NULL,
+        volumetricWeightKg REAL NOT NULL,
+        timestamp INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -88,6 +119,23 @@ class HistoryDb {
           people INTEGER NOT NULL,
           perPerson REAL NOT NULL,
           currency TEXT NOT NULL,
+          timestamp INTEGER NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS box_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          length REAL NOT NULL,
+          width REAL NOT NULL,
+          height REAL NOT NULL,
+          unit TEXT NOT NULL,
+          volumeLiters REAL NOT NULL,
+          volumeM3 REAL NOT NULL,
+          surfaceAreaCm2 REAL NOT NULL,
+          volumetricWeightKg REAL NOT NULL,
           timestamp INTEGER NOT NULL
         )
       ''');
@@ -196,6 +244,57 @@ class HistoryDb {
       return await db.delete('tip_history');
     } catch (e) {
       debugPrint('Error clearing tip history: $e');
+      return 0;
+    }
+  }
+
+  // ── Box Measurement History ──────────────────────────────────────────────
+  Future<int> insertBoxMeasurement(BoxMeasurement measurement) async {
+    try {
+      final db = await database;
+      final id = await db.insert('box_history', measurement.toMap());
+      debugPrint('Stored box measurement in SQLite (id: $id): ${measurement.title} (${measurement.length}x${measurement.width}x${measurement.height} ${measurement.unit})');
+      return id;
+    } catch (e) {
+      debugPrint('Error inserting box measurement: $e');
+      return -1;
+    }
+  }
+
+  Future<List<BoxMeasurement>> getAllBoxHistory() async {
+    try {
+      final db = await database;
+      final maps = await db.query(
+        'box_history',
+        orderBy: 'timestamp DESC',
+      );
+      return maps.map((e) => BoxMeasurement.fromMap(e)).toList();
+    } catch (e) {
+      debugPrint('Error getting box history: $e');
+      return [];
+    }
+  }
+
+  Future<int> deleteBoxMeasurement(int id) async {
+    try {
+      final db = await database;
+      return await db.delete(
+        'box_history',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } catch (e) {
+      debugPrint('Error deleting box measurement: $e');
+      return 0;
+    }
+  }
+
+  Future<int> clearAllBoxHistory() async {
+    try {
+      final db = await database;
+      return await db.delete('box_history');
+    } catch (e) {
+      debugPrint('Error clearing box history: $e');
       return 0;
     }
   }

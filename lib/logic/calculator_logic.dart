@@ -143,9 +143,45 @@ class CalculatorLogic {
   }
 
   void _clearEntry() {
-    display = '0';
-    preview = '';
-    _justCalculated = false;
+    if (_justCalculated || display == 'Error') {
+      _reset();
+      return;
+    }
+
+    final trimmed = display.trimRight();
+    // If it ends with an operator like '5 + ', remove the operator
+    if (trimmed.endsWith('+') ||
+        trimmed.endsWith('−') ||
+        trimmed.endsWith('×') ||
+        trimmed.endsWith('÷') ||
+        trimmed.endsWith('^')) {
+      final opIdx = trimmed.lastIndexOf(RegExp(r'[+\−×÷^]'));
+      if (opIdx > 0) {
+        display = trimmed.substring(0, opIdx).trimRight();
+      } else {
+        display = '0';
+      }
+    } else {
+      // It ends with a number or function call, e.g. '5 + 9'
+      final lastOpIdx = trimmed.lastIndexOf(RegExp(r'[+\−×÷^(]'));
+      if (lastOpIdx >= 0) {
+        display = trimmed.substring(0, lastOpIdx + 1);
+        if (display.endsWith('+') ||
+            display.endsWith('−') ||
+            display.endsWith('×') ||
+            display.endsWith('÷') ||
+            display.endsWith('^')) {
+          display = '$display ';
+        }
+      } else {
+        display = '0';
+      }
+    }
+
+    if (display.isEmpty) {
+      display = '0';
+    }
+    _updateLivePreview();
   }
 
   void _addOpenParen() {

@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:calulator/data/history_db.dart';
 import 'package:calulator/logic/calculator_logic.dart';
@@ -62,7 +62,7 @@ void main() {
       logic.input('9');
       expect(logic.canClearEntry, isTrue);
       logic.input('C');
-      expect(logic.display, '0');
+      expect(logic.display, '5 + ');
       expect(logic.activeOperator, '+');
     });
   });

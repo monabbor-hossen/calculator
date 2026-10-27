@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../data/history_db.dart';
 import '../data/tip_calculation_model.dart';
+import '../screens/box_measurement_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/tip_calculator_screen.dart';
 import '../screens/tip_history_screen.dart';
@@ -81,6 +82,7 @@ class AppDrawer extends StatelessWidget {
             Text(
               '• Cross-platform SQLite offline history\n'
               '• Unit converter & Tip calculator\n'
+              '• 3D Box visualizer & measurements\n'
               '• Full keyboard & numpad support\n'
               '• Gesture backspace & tactile interactions',
               style: TextStyle(color: kTextSecondary, height: 1.5, fontSize: 13),
@@ -221,6 +223,21 @@ class AppDrawer extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => TipCalculatorScreen(initialBill: currentDisplay),
+                        ),
+                      );
+                      if (res != null) onValueSelected(res);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.view_in_ar_rounded,
+                    title: '3D Box Measurement',
+                    subtitle: 'Dimensions, volume & 3D visualizer',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final res = await Navigator.push<String>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BoxMeasurementScreen(initialValue: currentDisplay),
                         ),
                       );
                       if (res != null) onValueSelected(res);
